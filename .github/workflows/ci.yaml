@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+
+env:
+  GO_VERSION: '1.23'
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Verify modules
+        run: go mod verify
+
+      - name: Run vet
+        run: go vet ./...
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.out
+          fail_ci_if_error: false
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          if [ -z "$VERSION" ]; then VERSION=$(git describe --tags --always --dirty); fi
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          go build -ldflags="-s -w -X github.com/hash/droidaudit/cmd/droidaudit/commands.Version=$VERSION -X github.com/hash/droidaudit/cmd/droidaudit/commands.Commit=$COMMIT -X github.com/hash/droidaudit/cmd/droidaudit/commands.Date=$DATE" -o droidaudit ./cmd/droidaudit
+
+      - name: Test binary
+        run: ./droidaudit version
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: droidaudit-linux-amd64
+          path: droidaudit
+
+  build-multiarch:
+    name: Multi-arch Build
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'release'
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            name: droidaudit-linux-amd64
+          - goos: linux
+            goarch: arm64
+            name: droidaudit-linux-arm64
+          - goos: darwin
+            goarch: amd64
+            name: droidaudit-darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            name: droidaudit-darwin-arm64
+          - goos: windows
+            goarch: amd64
+            name: droidaudit-windows-amd64.exe
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Build ${{ matrix.name }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          COMMIT=$(git rev-parse --short HEAD)
+          DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags="-s -w -X github.com/hash/droidaudit/cmd/droidaudit/commands.Version=$VERSION -X github.com/hash/droidaudit/cmd/droidaudit/commands.Commit=$COMMIT -X github.com/hash/droidaudit/cmd/droidaudit/commands.Date=$DATE" -o ${{ matrix.name }} ./cmd/droidaudit
+
+      - name: Upload ${{ matrix.name }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build, build-multiarch]
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create checksums
+        run: |
+          cd artifacts
+          sha256sum * > checksums.txt
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*
+        fail_on_unmatched_files: false
+
+  golangci-lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m
