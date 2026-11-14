@@ -3,7 +3,6 @@
 **Free, open-source Android privacy & security auditor.** Scan your device via ADB and get a beautiful report showing exactly what your apps can access, what trackers they contain, network connections, bloatware, and insecure settings.
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-pink?style=for-the-badge&logo=ko-fi)](https://ko-fi.com/hash812)
-[![Open Collective](https://img.shields.io/badge/Open%20Collective-Support-orange?style=for-the-badge&logo=open-collective)](https://opencollective.com/droidaudit)
 ![droidaudit demo](https://img.shields.io/badge/demo-HTML%20Report-blue)
 [![Go](https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go)](https://golang.org)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-orange)](LICENSE)
@@ -230,9 +229,7 @@ AGPL-3.0 — Free for personal and commercial use. See [LICENSE](LICENSE).
 
 - 🐛 [Issues](https://github.com/hash-812/droidaudit/issues) — Bug reports, feature requests
 - 💬 [Discussions](https://github.com/hash-812/droidaudit/discussions) — Questions, ideas
-- ☕ **Support this project:**
-  - [Ko-fi](https://ko-fi.com/hash812) — One-time or monthly via PayPal
-  - [Open Collective](https://opencollective.com/droidaudit) — Transparent funding, recurring
+- ☕ **Support this project:** [Ko-fi](https://ko-fi.com/hash812) — One-time or monthly via PayPal
 
 ---
 
